@@ -1,7 +1,6 @@
 use std::io;
 use rand::Rng;
 
-
 const BOARD_DIMENSION : usize = 10;
 
 const NUM_BIG_SHIPS : usize = 1;
