@@ -1,8 +1,10 @@
 use std::io;
+use futures_util::SinkExt;
 use rand::Rng;
 use tokio::{self, stream};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
+use futures_util::stream::StreamExt;
 
 const BOARD_DIMENSION : usize = 10;
 
@@ -55,8 +57,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn handle_client(stream: tokio::net::TcpStream) {
-    if let Ok(ws_stream) = accept_async(stream).await {
+    if let Ok(ws_handshake) = accept_async(stream).await {
         println!("New websocket connection!");
+        let player_board = init_board();
+        let board_message = send_board(&player_board);
+
+        let (mut write, mut read) = ws_handshake.split();
+        if write.send(board_message.into()).await.is_err() {
+            println!("Message not sent due to internal error"); 
+        }
+        
+    } else {
+        println!("perchance....websocket got cooked");
     }
 }
 
@@ -74,21 +86,26 @@ fn init_board() -> Board {
     return board_struct;
 }
 
-fn show_board(board : &Board) {
+fn send_board(board : &Board) -> String {
+    let mut board_string = String::new();
+
     for row in board.board {
-        print!("|");
+        board_string.push_str("\n|");
         for value in row {
             if value == 0 {
-                print!("   |")
+                board_string.push_str("   |")
             } else {
-                print!(" * |")
+                board_string.push_str(" * |")
             }
         }
-        print!("  |");
-        println!();
+        board_string.push_str("  |");
+        board_string.push_str("\n")
     }
-    println!("{}", board.num_ships);
-    println!("{}", board.open_space_left);
+    board_string.push_str(&board.num_ships.to_string());
+    board_string.push_str("\n");
+    board_string.push_str(&board.open_space_left.to_string());
+
+    return board_string;
 }
 
 fn get_player_input(player_number : u8) -> (usize, usize) {
