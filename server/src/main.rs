@@ -1,5 +1,8 @@
 use std::io;
 use rand::Rng;
+use tokio::{self, stream};
+use tokio::net::TcpListener;
+use tokio_tungstenite::accept_async;
 
 const BOARD_DIMENSION : usize = 10;
 
@@ -38,13 +41,23 @@ struct Board {
     open_space_left: usize
 }
 
-fn main() {
-    let mut board_player_1 = init_board();
-    let mut board_player_2 = init_board();
-    
-    show_board(&board_player_1);
-    show_board(&board_player_2);
 
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let listener = TcpListener::bind("127.0.0.1:8080").await?;
+    println!("Listening on: ws://127.0.0.1:8080");
+
+    while let Ok((stream, _)) = listener.accept().await {
+        tokio::spawn(handle_client(stream));
+    }
+
+    return Ok(());
+}
+
+async fn handle_client(stream: tokio::net::TcpStream) {
+    if let Ok(ws_stream) = accept_async(stream).await {
+        println!("New websocket connection!");
+    }
 }
 
 
@@ -66,12 +79,12 @@ fn show_board(board : &Board) {
         print!("|");
         for value in row {
             if value == 0 {
-                print!(" |")
+                print!("   |")
             } else {
-                print!("*|")
+                print!(" * |")
             }
         }
-        print!(" |");
+        print!("  |");
         println!();
     }
     println!("{}", board.num_ships);
@@ -124,7 +137,6 @@ fn get_player_input(player_number : u8) -> (usize, usize) {
 fn update_player_board(board : &mut Board, hit_location : (usize, usize)) {
     board.board[hit_location.0][hit_location.1] = 0;
     board.open_space_left += 1;
-
 }
 
 fn is_near_another_ship(board: &Board, row : usize, col : usize) -> bool {
