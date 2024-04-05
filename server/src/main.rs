@@ -1,4 +1,4 @@
-use std::{fs::read, io};
+use std::io;
 use rand::Rng;
 
 
