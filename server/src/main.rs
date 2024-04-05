@@ -73,7 +73,7 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
             match message {
                 Ok(msg) => {
                     println!("Received a message from the Player {}: {}", player_number, msg);
-                    let reply: String = reply_to_message_from_client(msg.to_string(), player_number).await;
+                    let reply: String = process_client_message(msg.to_string(), player_number).await;
                     if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
                         println!("Message not sent due to internal error");
                     }
@@ -90,7 +90,7 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
     }
 }
 
-async fn reply_to_message_from_client(message : String, player_number: usize) -> String {
+async fn process_client_message(message : String, player_number: usize) -> String {
     let mut input = String::new();
     println!("Enter a message to send to Player {}", player_number);
     io::stdin().read_line(&mut input).expect("Failed to read line");
