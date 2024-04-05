@@ -73,7 +73,7 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
             match message {
                 Ok(msg) => {
                     println!("Received a message from the Player {}: {}", player_number, msg);
-                    let reply: String = process_client_message(msg.to_string(), player_number).await;
+                    let reply: String = process_client_message(msg.to_string(), player_number);
                     if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
                         println!("Message not sent due to internal error");
                     }
@@ -90,7 +90,11 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
     }
 }
 
-async fn process_client_message(message : String, player_number: usize) -> String {
+fn process_client_message(message : String, player_number: usize) -> String {
+    let message = message.trim();
+    if message == "Bruh" {
+        return String::from("Bruh");
+    }
     let mut input = String::new();
     println!("Enter a message to send to Player {}", player_number);
     io::stdin().read_line(&mut input).expect("Failed to read line");
@@ -132,11 +136,6 @@ fn send_board(board : &Board, player_number: usize) -> String {
     board_string.push_str(&board.open_space_left.to_string());
     board_string.push_str("\n-----------------------------------\n\n");
     return board_string;
-}
-
-fn update_player_board(board : &mut Board, hit_location : (usize, usize)) {
-    board.board[hit_location.0][hit_location.1] = 0;
-    board.open_space_left += 1;
 }
 
 fn is_near_another_ship(board: &Board, row : usize, col : usize) -> bool {
