@@ -53,14 +53,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while let Ok((stream, _)) = listener.accept().await {
         player_count += 1;
-        tokio::spawn(handle_client(stream, player_count)); // Change this line
+        tokio::spawn(handle_client(stream, player_count)); 
     }
 
     return Ok(());
 }
 
 async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
-
     if let Ok(ws_handshake) = accept_async(stream).await {
         println!("New websocket connection!");
         let player_board = init_board();
@@ -112,7 +111,6 @@ fn init_board() -> Board {
 }
 
 fn send_board(board : &Board, player_number: usize) -> String {
-
     let mut board_string = String::new();
     board_string.push_str(&format!("\nInitial battleship board for Player {}\n", player_number)); 
     for row in board.board {
