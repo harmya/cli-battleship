@@ -1,4 +1,3 @@
-use std::io;
 use futures_util::SinkExt;
 use rand::Rng;
 use tokio::{self};
@@ -73,7 +72,8 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
             match message {
                 Ok(msg) => {
                     println!("Received a message from the Player {}: {}", player_number, msg);
-                    let reply: String = process_client_message(msg.to_string(), player_number);
+                    let msg_str = msg.to_string(); 
+                    let reply: String = process_client_message(msg_str, player_number);
                     if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
                         println!("Message not sent due to internal error");
                     }
@@ -92,13 +92,14 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
 
 fn process_client_message(message : String, player_number: usize) -> String {
     let message = message.trim();
-    if message == "Bruh" {
+    if message.len() == 0 || message.chars().all(char::is_whitespace) {
+        return String::from("Empty message");
+    } else if message == "Bruh" {
         return String::from("Bruh");
+    } else {
+        let outcome = String::from("Hit");
+        return format!("Outcome\n You {} {}", outcome, player_number);
     }
-    let mut input = String::new();
-    println!("Enter a message to send to Player {}", player_number);
-    io::stdin().read_line(&mut input).expect("Failed to read line");
-    return input;
 }
 
 fn init_board() -> Board {
@@ -116,7 +117,7 @@ fn init_board() -> Board {
 
 fn send_board(board : &Board, player_number: usize) -> String {
     let mut board_string = String::new();
-    board_string.push_str(&format!("\nInitial battleship board for Player {}\n", player_number)); 
+    board_string.push_str(&format!("\nTurn\n Initial battleship board for Player {}\n", player_number)); 
     for row in board.board {
         board_string.push_str("\n|");
         for value in row {

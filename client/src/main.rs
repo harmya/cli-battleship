@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Write};
 
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
@@ -16,12 +16,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let mut message_from_server = String::new();
-
         if let Some(message) = read.next().await {
             match message {
                 Ok(msg) => {
                     message_from_server = msg.to_string();
-                    println!("Received a message from the server: {}", msg);
+                    println!("\nReceived a message from the server\n {}", msg);
                 }
                 Err(e) => {
                     println!("Error receiving message: {:?}", e);
@@ -39,15 +38,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn reply_to_server_message(message : String) -> String {
-    //get the first word of the message
     let message = message.trim();
     let message = message.split_whitespace().next().unwrap();
-    println!("Message: {}", message);
-    if message == "Initial" {
+    if message == "Turn" {
         let (player_shot_row, player_shot_col) = get_player_input();
         return format!("{},{}", player_shot_row, player_shot_col);
     } else {
-        return String::from("Goodbye");
+        let mut input = String::new();
+        print!("Enter a message to send to the server: ");
+        io::stdin().read_line(&mut input).expect("Failed to read line");
+        return input;
     }
 }
 
@@ -55,10 +55,13 @@ fn get_player_input() -> (usize, usize) {
     loop {
         println!("Player, type i,j as the box to hit where i ≤ 10 and j ≤ 10");
         let mut player_input = String::new();
+        
+        io::stdout().flush().unwrap();
+
         io::stdin()
         .read_line(&mut player_input)
         .expect("perchance....no line?");
-    
+        
         let player_input : Vec<&str> = player_input.split(',').collect();
 
         if player_input.len() != 2 {
