@@ -1,7 +1,7 @@
 use std::io;
 use futures_util::SinkExt;
 use rand::Rng;
-use tokio::{self, stream};
+use tokio::{self};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
 use futures_util::stream::StreamExt;
@@ -49,29 +49,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Listening on: ws://127.0.0.1:8080");
 
+    let mut player_count : u8 = 0;
+    let Vec::<Board> player_boards = Vec::new();
+    
     while let Ok((stream, _)) = listener.accept().await {
-        tokio::spawn(handle_client(stream));
+        player_count += 1;
+        
+        tokio::spawn(handle_client(stream, player_count));
     }
 
     return Ok(());
 }
 
-async fn handle_client(stream: tokio::net::TcpStream) {
+
+async fn handle_client(stream: tokio::net::TcpStream, player_number: u8) {
     if let Ok(ws_handshake) = accept_async(stream).await {
         println!("New websocket connection!");
         let player_board = init_board();
-        let board_message = send_board(&player_board);
-
+        let board_message = send_board(&player_board, player_number);
         let (mut write, mut read) = ws_handshake.split();
         if write.send(board_message.into()).await.is_err() {
             println!("Message not sent due to internal error"); 
         }
-        
+        // listen for messages from the client
+        while let Some(message) = read.next().await {
+            match message {
+                Ok(msg) => {
+                    println!("Received a message from the client: {}", msg);
+                    let reply: String = reply_to_message_from_client(msg.to_string(), player_number).await;
+                    if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
+                        println!("Message not sent due to internal error");
+                    }
+                }
+                Err(e) => {
+                    println!("Error receiving message: {:?}", e);
+                    break;
+                }
+            }
+        }
+
     } else {
         println!("perchance....websocket got cooked");
     }
 }
 
+async fn reply_to_message_from_client(message : String, player_number: u8) -> String {
+    let mut input = String::new();
+    println!("Enter a message to send to the client: ");
+    io::stdin().read_line(&mut input).expect("Failed to read line");
+    return input;
+}
 
 fn init_board() -> Board {
     let board : [[u8; BOARD_DIMENSION]; BOARD_DIMENSION] = [[0; BOARD_DIMENSION]; BOARD_DIMENSION];
@@ -86,9 +113,10 @@ fn init_board() -> Board {
     return board_struct;
 }
 
-fn send_board(board : &Board) -> String {
-    let mut board_string = String::new();
+fn send_board(board : &Board, player_number: u8) -> String {
 
+    let mut board_string = String::new();
+    board_string.push_str("\nInitial battleship board:\n");
     for row in board.board {
         board_string.push_str("\n|");
         for value in row {
@@ -99,56 +127,15 @@ fn send_board(board : &Board) -> String {
             }
         }
         board_string.push_str("  |");
-        board_string.push_str("\n")
+        board_string.push_str("\n\n")
     }
+    board_string.push_str("Number of ships: ");
     board_string.push_str(&board.num_ships.to_string());
     board_string.push_str("\n");
+    board_string.push_str("Open spaces left: ");
     board_string.push_str(&board.open_space_left.to_string());
-
+    board_string.push_str("\n-----------------------------------\n\n");
     return board_string;
-}
-
-fn get_player_input(player_number : u8) -> (usize, usize) {
-    loop {
-        println!("Player {player_number}, type i,j as the box to hit where i ≤ 10 and j ≤ 10");
-        let mut player_input = String::new();
-        io::stdin()
-        .read_line(&mut player_input)
-        .expect("perchance....no line?");
-    
-        let player_input : Vec<&str> = player_input.split(',').collect();
-
-        if player_input.len() != 2 {
-            println!("ERROR: perchance....input a number?");
-            continue;
-        }
-        
-        let player_shot_row  = match player_input[0].trim()
-            .parse() {
-                Ok(n) => n,
-                Err(_) => {
-                    println!("ERROR: Perchance....check your number? \n");
-                    continue;
-                }
-            };
-        
-        let player_shot_col = match player_input[1].trim()
-            .parse() {
-                Ok(n) => n,
-                Err(_) => {
-                    println!("ERROR: Perchance....check your number?");
-                    continue;
-                }
-            };
-
-        if player_shot_row >= BOARD_DIMENSION || player_shot_col >= BOARD_DIMENSION{
-            println!("Input a number less than {}", BOARD_DIMENSION);
-            continue;
-        }
-
-        return (player_shot_row, player_shot_col);
-    }
-    
 }
 
 fn update_player_board(board : &mut Board, hit_location : (usize, usize)) {
@@ -218,5 +205,3 @@ fn initialize_battleships(board: &mut Board, ship_type: BATTLESHIP, ship_count: 
         }
     }
 }
-
-
