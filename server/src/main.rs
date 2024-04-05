@@ -49,20 +49,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Listening on: ws://127.0.0.1:8080");
 
-    let mut player_count : u8 = 0;
-    let Vec::<Board> player_boards = Vec::new();
-    
+    let mut player_count : usize = 0;
+
     while let Ok((stream, _)) = listener.accept().await {
         player_count += 1;
-        
-        tokio::spawn(handle_client(stream, player_count));
+        tokio::spawn(handle_client(stream, player_count)); // Change this line
     }
 
     return Ok(());
 }
 
+async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
 
-async fn handle_client(stream: tokio::net::TcpStream, player_number: u8) {
     if let Ok(ws_handshake) = accept_async(stream).await {
         println!("New websocket connection!");
         let player_board = init_board();
@@ -75,7 +73,7 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: u8) {
         while let Some(message) = read.next().await {
             match message {
                 Ok(msg) => {
-                    println!("Received a message from the client: {}", msg);
+                    println!("Received a message from the Player {}: {}", player_number, msg);
                     let reply: String = reply_to_message_from_client(msg.to_string(), player_number).await;
                     if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
                         println!("Message not sent due to internal error");
@@ -93,7 +91,7 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: u8) {
     }
 }
 
-async fn reply_to_message_from_client(message : String, player_number: u8) -> String {
+async fn reply_to_message_from_client(message : String, player_number: usize) -> String {
     let mut input = String::new();
     println!("Enter a message to send to the client: ");
     io::stdin().read_line(&mut input).expect("Failed to read line");
@@ -113,10 +111,10 @@ fn init_board() -> Board {
     return board_struct;
 }
 
-fn send_board(board : &Board, player_number: u8) -> String {
+fn send_board(board : &Board, player_number: usize) -> String {
 
     let mut board_string = String::new();
-    board_string.push_str("\nInitial battleship board:\n");
+    board_string.push_str(&format!("\nInitial battleship board for Player {}\n", player_number)); 
     for row in board.board {
         board_string.push_str("\n|");
         for value in row {
