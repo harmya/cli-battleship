@@ -93,7 +93,7 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
 
 async fn reply_to_message_from_client(message : String, player_number: usize) -> String {
     let mut input = String::new();
-    println!("Enter a message to send to the client: ");
+    println!("Enter a message to send to Player {}", player_number);
     io::stdin().read_line(&mut input).expect("Failed to read line");
     return input;
 }
