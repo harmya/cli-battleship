@@ -26,6 +26,7 @@ enum BATTLESHIP {
     Medium,
     Small
 }
+
 impl BATTLESHIP {
     fn get_ship_size(&self) -> usize {
         match self {
@@ -60,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
     if let Ok(ws_handshake) = accept_async(stream).await {
-        println!("New websocket connection!");
+        println!("Got new websocket connection for Player {}", player_number);
         let player_board = init_board();
         let board_message = send_board(&player_board, player_number);
         let (mut write, mut read) = ws_handshake.split();
