@@ -49,9 +49,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Listening on: ws://127.0.0.1:8080");
     let mut player_count : usize = 0;
+
     while let Ok((stream, _)) = listener.accept().await {
         player_count += 1;
-        tokio::spawn(handle_client(stream, player_count)); 
+        tokio::spawn(handle_client(stream, player_count));
     }
     return Ok(());
 }
