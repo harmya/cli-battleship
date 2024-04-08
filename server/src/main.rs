@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use futures_util::lock::Mutex;
 use futures_util::SinkExt;
 use rand::Rng;
 use tokio::{self};
@@ -100,8 +98,7 @@ fn process_client_message(message : String, player_number: usize) -> String {
         return String::from("Bruh");
     }
     else {
-        let outcome = String::from("Hit");
-        return format!("Outcome\n You {} {}", outcome, player_number);
+        return format!("turn Got move from {}", player_number);
     }
 }
 

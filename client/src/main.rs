@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn reply_to_server_message(message : String) -> String {
     let message = message.trim();
     let message = message.split_whitespace().next().unwrap();
-    if message == "Turn" {
+    if message == "turn" {
         let (player_shot_row, player_shot_col) = get_player_input();
         return format!("{},{}", player_shot_row, player_shot_col);
     } else {
