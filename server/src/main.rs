@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use futures_util::SinkExt;
 use rand::Rng;
 use tokio::{self};
@@ -37,6 +39,17 @@ impl BATTLESHIP {
     }
 }
 
+struct GameState {
+    player_1_board : Board,
+    player_2_board : Board,
+    player_1_turn : bool,
+}
+
+struct Move {
+    player_number : usize,
+    row : usize,
+    col : usize,
+}
 struct Board {
     board : [[u8; BOARD_DIMENSION]; BOARD_DIMENSION],
     num_ships: usize,
@@ -44,21 +57,23 @@ struct Board {
 }
 
 
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Listening on: ws://127.0.0.1:8080");
     let mut player_count : usize = 0;
+    println!("Player count: {}", player_count);
+    let game_moves = Arc::new(Mutex::new(Vec::<Move>::new()));
 
     while let Ok((stream, _)) = listener.accept().await {
         player_count += 1;
-        tokio::spawn(handle_client(stream, player_count));
+        let shared_var = game_moves.clone();
+        tokio::spawn(handle_client(stream, player_count, shared_var));
     }
     return Ok(());
 }
 
-async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
+async fn handle_client(stream: tokio::net::TcpStream, player_number: usize, shared_var: Arc<Mutex<Vec<Move>>>) {
     if let Ok(ws_handshake) = accept_async(stream).await {
         println!("Got new websocket connection for Player {}", player_number);
         let player_board = init_board();
@@ -73,7 +88,18 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
                 Ok(msg) => {
                     println!("Received a message from the Player {}: {}", player_number, msg);
                     let msg_str = msg.to_string(); 
-                    let reply: String = process_client_message(msg_str, player_number);
+                    println!("Message: {}", msg_str);
+                    let move_player_number = msg_str.split(",").next().unwrap().parse::<usize>().unwrap();
+                    let move_row = msg_str.split(",").nth(1).unwrap().parse::<usize>().unwrap();
+                    let move_col = msg_str.split(",").nth(2).unwrap().parse::<usize>().unwrap();
+                    let player_move = Move{player_number: move_player_number, row: move_row, col: move_col};
+                    //let reply: String = process_client_message(msg_str, player_number);
+                    let mut shared_var = shared_var.lock().await;
+                    shared_var.push(player_move);
+                    for p_move in shared_var.iter() {
+                        println!("Player: {}, Row: {}, Col: {}", p_move.player_number, p_move.row, p_move.col);
+                    }
+                    let reply = String::from("got");
                     if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
                         println!("Message not sent due to internal error");
                     }
@@ -91,8 +117,11 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize) {
 }
 
 fn process_client_message(message : String, player_number: usize) -> String {
+    let first_word = message.split_whitespace().next().unwrap();
     let message = message.trim();
-    if message.len() == 0 || message.chars().all(char::is_whitespace) {
+    if first_word == "turn" {
+        return String::from("turn");
+    } else if message.len() == 0 || message.chars().all(char::is_whitespace) {
         return String::from("Empty message");
     } else if message == "Bruh" {
         return String::from("Bruh");
