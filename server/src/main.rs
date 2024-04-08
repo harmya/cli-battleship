@@ -101,7 +101,7 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize, game
                     for p_move in game_moves.iter() {
                         println!("Player: {}, Row: {}, Col: {}", p_move.player_number, p_move.row, p_move.col);
                     }
-                    let reply = String::from("turn");
+                    let reply = String::from(player_number.to_string() + " turn" + ";Cooked");
                     if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
                         println!("Message not sent due to internal error");
                     }
