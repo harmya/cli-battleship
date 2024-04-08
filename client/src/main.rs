@@ -6,6 +6,13 @@ use futures_util::{stream::StreamExt, SinkExt};
 
 const BOARD_DIMENSION : usize = 10;
 
+
+struct ServerMessage {
+    player_number : usize,
+    move_id : String,
+    msg : String
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = Url::parse("ws://127.0.0.1:8080")?;
@@ -37,12 +44,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     return Ok(());
 }
 
+fn process_message(message : String) -> ServerMessage {
+    let key_message = message.split(";").next().unwrap();
+    let value_message = message.split(";").nth(1).unwrap();
+    let player_number = key_message.split_whitespace().next().unwrap().parse::<usize>().unwrap();
+    let move_id = key_message.split_whitespace().nth(1).unwrap();
+    return ServerMessage{player_number: player_number, move_id: move_id.to_string(), msg: value_message.to_string()};
+}
+
 fn reply_to_server_message(message : String) -> String {
     let message = message.trim();
-    let message = message.split_whitespace().next().unwrap();
-    if message == "turn" {
+    let msg = process_message(message.to_string());
+
+    let player_number = msg.player_number;
+    let move_id = msg.move_id;
+    let message = msg.msg;
+
+    if move_id == "init" || move_id == "turn" {
         let (player_shot_row, player_shot_col) = get_player_input();
-        return format!("{},{}", player_shot_row, player_shot_col);
+        return format!("{},{},{}", player_number, player_shot_row, player_shot_col);
     } else {
         let mut input = String::new();
         print!("Enter a message to send to the server: ");

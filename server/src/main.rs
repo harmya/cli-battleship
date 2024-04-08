@@ -63,17 +63,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Listening on: ws://127.0.0.1:8080");
     let mut player_count : usize = 0;
     println!("Player count: {}", player_count);
+    let game_state = Arc::new(Mutex::new(GameState{player_1_board: init_board(), player_2_board: init_board(), player_1_turn: true}));
     let game_moves = Arc::new(Mutex::new(Vec::<Move>::new()));
 
     while let Ok((stream, _)) = listener.accept().await {
         player_count += 1;
-        let shared_var = game_moves.clone();
-        tokio::spawn(handle_client(stream, player_count, shared_var));
+        let game_state = game_state.clone();
+        let game_moves = game_moves.clone();
+        tokio::spawn(handle_client(stream, player_count,game_moves, game_state));
     }
     return Ok(());
 }
 
-async fn handle_client(stream: tokio::net::TcpStream, player_number: usize, shared_var: Arc<Mutex<Vec<Move>>>) {
+async fn handle_client(stream: tokio::net::TcpStream, player_number: usize, game_moves: Arc<Mutex<Vec<Move>>>, game_state: Arc<Mutex<GameState>>) {
     if let Ok(ws_handshake) = accept_async(stream).await {
         println!("Got new websocket connection for Player {}", player_number);
         let player_board = init_board();
@@ -94,12 +96,12 @@ async fn handle_client(stream: tokio::net::TcpStream, player_number: usize, shar
                     let move_col = msg_str.split(",").nth(2).unwrap().parse::<usize>().unwrap();
                     let player_move = Move{player_number: move_player_number, row: move_row, col: move_col};
                     //let reply: String = process_client_message(msg_str, player_number);
-                    let mut shared_var = shared_var.lock().await;
-                    shared_var.push(player_move);
-                    for p_move in shared_var.iter() {
+                    let mut game_moves = game_moves.lock().await;
+                    game_moves.push(player_move);
+                    for p_move in game_moves.iter() {
                         println!("Player: {}, Row: {}, Col: {}", p_move.player_number, p_move.row, p_move.col);
                     }
-                    let reply = String::from("got");
+                    let reply = String::from("turn");
                     if write.send(tokio_tungstenite::tungstenite::Message::Text(reply)).await.is_err() {
                         println!("Message not sent due to internal error");
                     }
@@ -146,25 +148,33 @@ fn init_board() -> Board {
 
 fn send_board(board : &Board, player_number: usize) -> String {
     let mut board_string = String::new();
-    board_string.push_str(&format!("\nTurn\n Initial battleship board for Player {}\n", player_number)); 
+
+    let key_string = String::from(player_number.to_string() + " init;");
+
+    let mut value_string = String::new();
+    value_string.push_str(&format!("Initial battleship board for Player {}\n", player_number)); 
     for row in board.board {
-        board_string.push_str("\n|");
+        value_string.push_str("\n|");
         for value in row {
             if value == 0 {
-                board_string.push_str("   |")
+                value_string.push_str("   |")
             } else {
-                board_string.push_str(" * |")
+                value_string.push_str(" * |")
             }
         }
-        board_string.push_str("  |");
-        board_string.push_str("\n\n")
+        value_string.push_str("  |");
+        value_string.push_str("\n\n")
     }
-    board_string.push_str("Number of ships: ");
-    board_string.push_str(&board.num_ships.to_string());
-    board_string.push_str("\n");
-    board_string.push_str("Open spaces left: ");
-    board_string.push_str(&board.open_space_left.to_string());
-    board_string.push_str("\n-----------------------------------\n\n");
+    value_string.push_str("Number of ships: ");
+    value_string.push_str(&board.num_ships.to_string());
+    value_string.push_str("\n");
+    value_string.push_str("Open spaces left: ");
+    value_string.push_str(&board.open_space_left.to_string());
+    value_string.push_str("\n-----------------------------------\n\n");
+
+    board_string.push_str(&key_string);
+    board_string.push_str(&value_string);
+
     return board_string;
 }
 
