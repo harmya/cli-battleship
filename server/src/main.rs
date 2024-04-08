@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use futures_util::lock::Mutex;
 use futures_util::SinkExt;
 use rand::Rng;
 use tokio::{self};
@@ -42,6 +44,7 @@ struct Board {
     num_ships: usize,
     open_space_left: usize
 }
+
 
 
 #[tokio::main]
@@ -95,7 +98,8 @@ fn process_client_message(message : String, player_number: usize) -> String {
         return String::from("Empty message");
     } else if message == "Bruh" {
         return String::from("Bruh");
-    } else {
+    }
+    else {
         let outcome = String::from("Hit");
         return format!("Outcome\n You {} {}", outcome, player_number);
     }
